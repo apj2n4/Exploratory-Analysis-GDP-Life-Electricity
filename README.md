@@ -1,5 +1,4 @@
-# EDA_GDP_Life_Electricity
-Life Expectancy, Electricity Consumption and GDP from 1981 to 2011 - A Visual study
+# Life Expectancy, Electricity Consumption and GDP from 1981 to 2011 - A Visual study
 Arun Janakiraman
 3/29/2019
 Abstract
