@@ -5,6 +5,7 @@ date: "3/29/2019"
 output:
   html_document:
      css: styles.css
+     keep_md: true
 ---
 
 ```{r setup, include=FALSE}
