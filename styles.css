@@ -1,0 +1,24 @@
+.container-fluid.main-container {
+  max-width: 1200px;
+  background: #fff;
+  /*float: left;*/
+  border: 1px solid #ccc;
+  border-top: 3px solid #0000CC;
+  padding-top:50px;
+  margin-right:300px;
+  margin-left:300px;
+  }
+
+body {
+    /*font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;*/
+    font-family: TimesNewRoman, "Times New Roman", Times, Baskerville, Georgia, serif; 
+    font-size: 18px;
+    line-height: 1.4;
+    color: #333;
+    background-color: LightBlue;
+    text-align: justify;
+}
+
+.caption {
+  font-size: 20px;
+}

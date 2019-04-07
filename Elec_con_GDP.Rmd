@@ -1,0 +1,713 @@
+---
+title: "Life Expectancy, Electricity Consumption and GDP from 1981 to 2011 -  A Visual study"
+author: "Arun Janakiraman"
+date: "3/29/2019"
+output:
+  html_document:
+     css: styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+This project tries to shed light on the relationship between Life Expectancy, Electricity Consumption per capita (in kWh) and GDP growth per capita (in Y2000 $) for around 90 countries. The purpose is to understand whether human life expectancy in years is positively correlated with energy consumption and GDP growth. The question is whether more industrialized nations which have on average higher energy consumption  and higher GDP per capita also have higher life expectancy.
+
+This hypothesis appears obvious but having actual data to support it will be very helpful. Governments in developing and emerging countries like India, China and African nations can use such type of analysis for energy infrastructure planning and economic development.  Better energy infrastructure leads to higher economic activity and more economic activity will create demand for more energy production and the cycle goes on leading to higher life expectancy. This positive correlation is explored in this project using various visualization techniques. Population of the various countries were also plotted. Different visualization techniques were used to represent this multivariate data to understand trends.
+War leads to reduction in life expectancy and this is quite stark in the case of Libya and Syria in the recent years. 
+
+
+## Data
+
+The GDP, Electricity consumption, Life Expectancy and world population data were obtained from Gap Minder website https://www.gapminder.org/data/. Country continents and ISO codes were obtained from Wikipedia. There were a lot of missing data in the files which resulted in a lot of cleaning being performed. R has been used for all the cleaning and combining operations leading to one final data frame . Out of the 195 countries in the world only 84 countries had continuous GDP, Electricity Consumption, Life Expectancy and Population data from 1981 to 2011.
+
+```{r Reading and creating final dataframe, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+rm(list = ls())
+library(plotly)
+library(ggplot2)
+library(shiny)
+elec_consumption <- read.csv("ElectricityConsumptionPerCapita.csv",
+                             header = T,sep = ",",check.names = FALSE )
+colnames(elec_consumption)[1]="Country"
+#summary(elec_consumption)
+
+elec_consumption <- elec_consumption[,-c(2:22)]
+elec_consumption[,1] <- as.character(elec_consumption[,1])
+
+
+countries_full <- read.csv("GPW3-GRUMP_SummaryInformation_beta.csv",
+                           header = T,sep = ",",check.names = TRUE,colClasses ="character" )
+countries_continent <- countries_full[,c(1,3)]
+colnames(countries_continent) <- c("Country","Continent")
+
+gdp_per_cap <- read.csv("GDPpercapitaconstant2000US.csv",
+                        header = T,sep = ",",check.names = FALSE)
+
+gdp_per_cap <- gdp_per_cap[-c(2:22)]
+gdp_per_cap[,1] <- as.character(gdp_per_cap[,1])
+colnames(gdp_per_cap)[1] <- "Country"
+
+population <- read.csv("population.csv",
+                       header = T,sep = ",",check.names = FALSE,colClasses ="character" )
+
+population <- population[,-c(2:47)]
+population <- population[,-c(33:46)]
+colnames(population)[1] <- "Country"
+
+population[,1]=as.character(population[,1])
+population <- population[!apply(population=="",1,all),]
+
+gdp_per_cap <- gdp_per_cap[order(gdp_per_cap$Country),]
+elec_consumption <- elec_consumption[order(elec_consumption$Country),]
+population <- population[order(population$Country),]
+
+gdp_per_cap <- na.omit(gdp_per_cap)
+elec_consumption <- na.omit(elec_consumption)
+
+n <- length(elec_consumption$Country)
+k <- length(gdp_per_cap$Country)
+common <- rep(FALSE,k)
+
+for(i in 1:n){
+  for(j in 1:k){
+    if(elec_consumption$Country[i]==gdp_per_cap$Country[j]){
+      #print(paste(elec_consumption$Country[i],gdp_per_cap$Country[j]))
+      common[i] <- TRUE
+    }
+  }
+}
+
+elec_consumption <- elec_consumption[common,]
+
+elec_consumption <- elec_consumption[order(elec_consumption$Country),]
+
+n <- length(elec_consumption$Country)
+k <- length(gdp_per_cap$Country)
+common <- rep(FALSE,k)
+
+for(j in 1:k){
+  for(i in 1:n){
+    if(gdp_per_cap$Country[j]==elec_consumption$Country[i]){
+      common[j]=TRUE
+    }
+  }
+}
+gdp_per_cap <- gdp_per_cap[common,]
+
+
+k <- length(population[,1])
+n <- length(elec_consumption[,1])
+
+common <- rep(FALSE,k)
+
+for(i in 1:k){
+  for(j in 1:n){
+    if(population[i,1]==elec_consumption[j,1]){
+      common[i]=TRUE
+      }
+  }
+}
+population <- population[common,]
+
+country1 <- cbind(elec_consumption$Country,gdp_per_cap$Country,population$Country)
+
+gdp_per_cap_mod <- gdp_per_cap[order(gdp_per_cap$Country),]
+population_mod <- population[order(population$Country),]
+elec_consumption_mod <- elec_consumption[order(elec_consumption$Country),]
+gdp_per_cap_mod <- gdp_per_cap[order(gdp_per_cap$Country),]
+
+countries_continent <- countries_continent[order(countries_continent$Country),]
+
+k <- length(population_mod[,1])
+n <- length(countries_continent[,1])
+
+continent = rep("Other",k)
+for(i in 1:k){
+  for(j in 1:n){
+    if(identical(population_mod[i,1],countries_continent[j,1])){
+        continent[i]=countries_continent[j,2]
+        #print(paste(population_mod[i,1],countries_continent[j,1]))
+    }
+  }
+}
+population_mod$Continent <- continent
+
+population_mod[,-c(1,33)] <- lapply(population_mod[,-c(1,33)],function(x){as.numeric(gsub(",", "", x))})
+population_mod$Continent <- as.character(population_mod$Continent)
+population_mod$Continent[which(population_mod$Country=="Ireland")]= "Europe"
+population_mod$Continent[which(population_mod$Country=="Brunei")]="Asia"
+population_mod$Continent[which(population_mod$Country=="Congo, Dem. Rep.")]="Africa"
+population_mod$Continent[which(population_mod$Country=="Congo, Rep.")]="Africa"
+population_mod$Continent[which(population_mod$Country=="Cote d'Ivoire")]="Africa"
+population_mod$Continent[which(population_mod$Country=="Hong Kong, China")]="Asia"
+population_mod$Continent[which(population_mod$Country=="Morocco")]="Africa"
+population_mod$Continent[which(population_mod$Country=="South Korea")]="Asia"
+population_mod$Continent[which(population_mod$Country=="United States")]="North America"
+
+# countries_1 <- data.frame(population_mod$Country[order(population_mod$Country)]
+#                           ,elec_consumption_mod$Country[order(elec_consumption_mod$Country)],
+#                           gdp_per_cap_mod$Country[order(gdp_per_cap_mod$Country)])
+countries_1 <- data.frame(population_mod$Country,elec_consumption_mod$Country,gdp_per_cap_mod$Country)
+
+years <- (as.numeric(colnames(elec_consumption_mod[1,c(2:32)])))
+n <- length(gdp_per_cap_mod[,1])
+
+gdp_frame <- data.frame(Country=character(0),Year=numeric(0),GDP=numeric(0))
+
+for(i in 1:n){
+  country <- (rep(gdp_per_cap_mod[i,1],length(years)))
+  #names(country)="Country"
+  gdp <- as.numeric(gdp_per_cap_mod[i,-c(1)])
+  #names(gdp)="GDP"
+  temp_frame = cbind(country,years,gdp)
+  colnames(temp_frame) = c("Country","Year","GDP")
+ 
+  gdp_frame = rbind(gdp_frame,temp_frame)
+}
+
+n <- length(elec_consumption_mod[,1])
+elec_frame <- data.frame(Country=character(0),Year=numeric(0),Elec_consump=numeric(0))
+for(i in 1:n){
+  country <- (rep(elec_consumption_mod[i,1],length(years)))
+  elec <- as.numeric(elec_consumption_mod[i,-c(1)])
+  temp_frame1 = cbind(country,years,elec)
+  colnames(temp_frame1) = c("Country","Year","Elec_consump")
+  
+  elec_frame = rbind(elec_frame,temp_frame1)
+}
+
+n <- length(population_mod[,1])
+
+pop_frame <- data.frame(Country=character(0),Year=numeric(0),Population=numeric(0),Continent=character(0))
+
+for(i in 1:n){
+  country <- rep(population_mod[i,1],length(years))
+  conti <- as.character(rep(population_mod[i,33],length(years)))
+  pop <- as.numeric(as.character(population_mod[i,-c(1,33)]))
+  temp_frame2 <- cbind(country,years,pop,conti)
+  colnames(temp_frame2) <- c("Country","Year","Population","Continent")
+  pop_frame <- rbind(pop_frame,temp_frame2)
+}
+
+
+combined <- data.frame(elec_frame,gdp_frame,pop_frame)
+
+combined_cleaned <- na.omit(combined)
+
+combined_cleaned$Country.1 <- NULL
+combined_cleaned$Year.1 <- NULL
+combined_cleaned$Country.2 <- NULL
+combined_cleaned$Year.2 <- NULL
+combined_cleaned$Year = as.numeric(as.character(combined_cleaned$Year))
+combined_cleaned$Elec_consump = as.numeric(as.character(combined_cleaned$Elec_consump))
+combined_cleaned$GDP = as.numeric(as.character(combined_cleaned$GDP))
+combined_cleaned$Population = as.numeric(as.character(combined_cleaned$Population))
+combined_cleaned$Continent= as.character(combined_cleaned$Continent)
+#summary(combined_cleaned)
+
+country_code <- read.csv("country_code_web.csv",
+                         header = T,sep = ",",check.names = FALSE,colClasses ="character" )
+colnames(country_code) <- c("Country","CODE")
+
+combined_cleaned$Country_code <- rep("A",length(combined_cleaned$Country))
+
+N <- length(combined_cleaned$Country)
+
+for(i in 1:N){
+  index <- which(country_code$Country == combined_cleaned$Country[i])
+  if(length(index)>0){
+    combined_cleaned$Country_code[i] = country_code$CODE[index]
+  }
+  
+}
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Brunei")]="BRN"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Congo, Dem. Rep.")]="COD"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Congo, Rep.")]="COG"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Cote d'Ivoire")]="CIV"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Hong Kong, China")]="HKG"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="South Korea")]="KOR"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="United Kingdom")]="GBR"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="United States")]="USA"
+combined_cleaned$Country_code[which(combined_cleaned$Country=="Venezuela")]="VEN"
+combined_cleaned$GDPoverall = combined_cleaned$GDP*combined_cleaned$Population
+```
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+country_code <- read.csv('country_code.csv',header=T,sep=',')
+country_code$X <- NULL
+country_code$GDP..BILLIONS. <- NULL
+colnames(country_code) <- c('Country','CODE')
+```
+
+
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+library(plotly)
+library(shiny)
+f <- list(
+  family = "Arial",
+  size = 14,
+  weight = 700,
+  color = "black"
+)
+f2 <- list(
+  family = "Arial",
+  size = 13,
+  color = "black"
+)
+tf <- list(
+  family = "Arial",
+  size = 18,
+  color = "black"
+)
+```
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+library(reshape2)
+life_exp <- read.csv('life_expectancy_years.csv',header = T,sep = ",",check.names = FALSE )
+
+life_exp_rel <- life_exp[,c(1,183:220)]
+
+life_exp_stack <- melt(life_exp_rel,id.vars = 'country')
+colnames(life_exp_stack) <- c("Country","Year","Life_Exp")
+#life_exp_stack$Year <- as.numeric(as.character(life_exp_stack$Year))
+
+life_exp_stack <- merge(life_exp_stack,country_code,by = 'Country' )
+
+```
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+life_exp_agg <- aggregate(life_exp_stack$Life_Exp, by=list(Category=life_exp_stack$Year),FUN=mean)
+```
+
+```{r,Life Expectancy barplot,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+xlabel <- list(title = "Year",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0
+)
+ylabel <- list(title = "<b>Life Expectancy in Years</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0)
+# bar_life_exp <- plot_ly( x = life_exp_agg$Category, y = life_exp_agg$x,
+#                         name = "Life Expectancy Bar Plot",
+#                         type = 'bar') %>% 
+#                 layout(title="Life Expectancy Bar Plot",titlefont = tf,
+#                        xaxis = xlabel,yaxis=ylabel,
+#                        height = 500)
+# 
+# div(bar_life_exp,align = 'center')
+```
+## Results
+
+The first plot displayed is a boxplot of life expectancy from 1981 to 2018. Overall there is rise in life expectancy as shown in the below figure. 
+
+<br>
+<br>
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.align='center',fig.cap = "<b>Boxplot of Life Expectancy from 1981 to 2018</b>"}
+life_exp_boxplot <- plot_ly(life_exp_stack, y=~Life_Exp,color = ~Year,type = "box",
+                            colors = 'Set3')%>%
+                    layout(title = '<b>Life Expectancy Distribution by Year</b>',titlefont = tf,
+                           yaxis = list(title = '<b>Life in Years</b>',titlefont = f,range=c(40,85)))
+div(life_exp_boxplot,align='center')
+```
+
+A simple one-way ANOVA was run to prove that the mean life expectancy for each year from 1981 to 2018 are different. Below are the results of the ANOVA and it clearly shows that there is enough evidence to reject the null hypothesis that the means are the same with a very small p-value (<2e-16)
+```{r,echo=FALSE}
+fit = lm(Life_Exp~Year,life_exp_stack)
+anova(fit)
+```
+
+
+<br>
+The life expectancy hasn't increased uniformly across the world. Countries in Africa and war torn countries like Iraq, Libya and Syria which historically have had higher life expectancies, have seen it go down in the recent years. The choropleth plot on the Mercator world map shows this.
+<br>
+<br>
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.cap='<b>Life Expectancy from 1981 to 2018</b>'}
+geo_GDP <- list(showframe=TRUE,
+                showcoastlines=TRUE,
+                projection=list(type='Mercator'))
+
+p_life <- plot_ly(life_exp_stack,
+                  z=~Life_Exp,
+                  color = ~Life_Exp,
+                  frame=~Year,
+                  text=~paste(Country,
+                              "Life Expectancy =",Life_Exp
+                              ),
+                  locations=~CODE,
+                  type='choropleth',
+                  colors=colorRamp(c("blue","green","yellow","red"))
+                  
+              ) %>%
+             colorbar(title = "Life Expectancy",tickpostfix="years",
+                      limits=c(60,83)) %>%
+             layout(title = "<b>Life Expectancy</b>",
+                    height=600,
+                    titlefont = tf,
+                    geo = geo_GDP)
+div(p_life,align='center')
+```
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+GDP and Electricity consumption are themselves correlated. This is shown in the animation plot below for various countries and by year. Please click on play to cycle through the entire dataset. It is hard to display multivariate data and using animation is one of the many ways to visualize it.
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.cap="<b>Electricity Consumption vs GDP</b>"}
+xlabel <- list(title = "<b>GDP per capita (Year 2000 US$)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0
+)
+ylabel <- list(title = "<b>Electricity Consumption per capita (kWh)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0)
+               
+p2 <- combined_cleaned %>%
+  plot_ly(
+    x = ~GDP,
+    y = ~Elec_consump,
+    size = ~2*Population,
+    sizes = c(40,400),
+    frame= ~Year,
+    text = ~paste(Country,Population),
+    color=~Continent,
+    colors = c("red","green","blue","black"),
+    hoverinfo = "text",
+    type = 'scatter',
+    mode = 'markers'
+    
+  )  %>%
+  layout(
+    xaxis = list(
+      type = "log"
+    )
+  )%>%
+  layout(
+    yaxis = list(
+      type="log"
+    )
+  )%>%
+  layout(
+    xaxis=xlabel,
+    yaxis=ylabel
+  )%>%
+  layout(plot_bgcolor = "rgb(255,255,230)", height = 600)%>%
+  animation_opts(frame = 500, easing = "linear",
+                 redraw = FALSE, mode = "immediate")%>%
+  animation_slider(
+  currentvalue = list(prefix = "YEAR ", font = list(color="red"))
+)
+
+
+div(p2,align = 'center')
+```
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+final <- merge(combined_cleaned,life_exp_stack,by.x=c('Country_code','Year'),by.y = c('CODE','Year'))
+
+```
+
+The following plots show similar sweeps from 1981 to 2011 with Life Expectancy on the y axis. Life expectancy is strongly correlated with GDP and Electricity consumption.
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.cap="<b>Life Expectancy vs GDP</b>"}
+xlabel <- list(title = "<b>GDP per capita (Year 2000 US$)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0
+)
+ylabel <- list(title = "<b>Life Expectancy(years)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0)
+               
+p3 <- final %>%
+  plot_ly(
+    x = ~GDP,
+    y = ~Life_Exp,
+    size = ~2*Population,
+    sizes = c(40,400),
+    frame= ~Year,
+    text = ~paste(Country.x,Population),
+    color=~Continent,
+    colors = c("black","red","green","orange"),
+    hoverinfo = "text",
+    type = 'scatter',
+    mode = 'markers'
+    
+  )  %>%
+  layout(
+    xaxis = list(
+      type = "log"
+    )
+  )%>%
+  layout(
+    yaxis = list(
+      type="log"
+    )
+  )%>%
+  layout(
+    xaxis=xlabel,
+    yaxis=ylabel
+  )%>%
+  layout(plot_bgcolor = "rgba(255,255,255,0.5)", height = 600)%>%
+  animation_opts(frame = 500, easing = "linear",
+                 redraw = FALSE, mode = "immediate")%>%
+  animation_slider(
+  currentvalue = list(prefix = "YEAR ", font = list(color="red"))
+)
+
+
+div(p3,align = 'center')
+```
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.cap="<b>Life Expectancy vs. Electricity Consumption</b>"}
+xlabel <- list(title = "<b>Electricity Consumption/capita (kWh)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0
+)
+ylabel <- list(title = "<b>Life Expectancy(years)</b>",
+               titlefont = f,
+               ticks = "outside",
+               tickfont = f2,
+               showgrid = TRUE,
+               mirror = "ticks",
+               zeroline = FALSE,
+               showline = TRUE,
+               linecolor = toRGB("black"),
+               linewidth = 1.0)
+               
+p4 <- final %>%
+  plot_ly(
+    x = ~Elec_consump,
+    y = ~Life_Exp,
+    size = ~2*Population,
+    sizes = c(40,400),
+    frame= ~Year,
+    text = ~paste(Country.x,Population),
+    color=~Continent,
+    colors = c("orange","blue","black","red"),
+    hoverinfo = "text",
+    type = 'scatter',
+    mode = 'markers'
+    
+  )  %>%
+  layout(
+    xaxis = list(
+      type = "log"
+    )
+  )%>%
+  layout(
+    yaxis = list(
+      type="log"
+    )
+  )%>%
+  layout(
+    xaxis=xlabel,
+    yaxis=ylabel
+  )%>%
+  layout(plot_bgcolor =  "rgba(200,255,200,0.5)", height = 600)%>%
+  animation_opts(frame = 500, easing = "linear",
+                 redraw = FALSE, mode = "immediate")%>%
+  animation_slider(
+  currentvalue = list(prefix = "YEAR ", font = list(color="red"))
+)
+
+
+div(p4,align = 'center')
+```
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+# library(corrplot)
+# 
+# res <- cor(final[,c(4,5,6,10)])
+```
+
+```{r Visualization,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.align='center'}
+
+# library(PerformanceAnalytics)
+# 
+# cp <- corrplot(res, type = "upper", order = "hclust", 
+#          tl.col = "black", tl.srt = 45)
+
+
+# plot(x = combined_cleaned$GDP, y = combined_cleaned$Elec_consump,
+#      xlab = "GDP per capita (Y 2000 US $)",
+#      ylab="Elec. Consump per capita (kWh)",
+#      main = "Elec. Consump per capita (kWh) vs GDP(US $) per capita (1981 to 2011)")
+
+# #summary(linear.model)
+# abline(linear.model,col="red",lwd=2)
+# legend(46000,50000,legend="Lin Reg. fit",lty ="solid",col="red")
+# xlabel <- list(title = "<b>GDP per capita (Y2000 USD)</b>",
+#                titlefont = f,
+#                ticks = "outside",
+#                tickfont = f2,
+#                showgrid = TRUE,
+#                zeroline = FALSE,
+#                mirror = TRUE,
+#                showline = TRUE,
+#                linecolor = toRGB("black"),
+#                #range = c(0,1000),
+#                linewidth = 1.5
+#                )
+# ylabel<- list(title = "<b>Electricity Consumption/Capita (kWh)</b>",
+#               titlefont = f,
+#               ticks = "outside",
+#               tickfont = f2,
+#               showgrid = TRUE,
+#               mirror = TRUE,
+#               zeroline = FALSE,
+#               showline = TRUE,
+#               linecolor = toRGB("black"),
+#               #range = c(0,1000),
+#               linewidth = 1.5
+#               )
+# p <- plot_ly(data = combined_cleaned, x = ~round(combined_cleaned$GDP,2))%>%
+#     add_markers(y=~round(combined_cleaned$Elec_consump,2),
+#                 marker=list(symbol =1,size = 8,color = 'rgba(255,0,0,0.9)',line = list(color = 'red',width = 2)),
+#                 showlegend=FALSE)%>%
+#     add_lines(y=~combined_cleaned$Elec_consump_fitted,
+#               line = list(color='black',width=1.5),
+#               hoverinfo = "skip",
+#               showlegend=FALSE)%>%
+#     # add_lines(y=~result$PinC,
+#     #           line = list(color='red',width=2),
+#     #           hoverinfo = "skip",
+#     #           showlegend=FALSE)%>%
+#     layout(title = "<b>Electricity Consumption vs GDP</b>",
+#            titlefont = tf,
+#            xaxis = xlabel,
+#            yaxis=ylabel,
+#            #width = 700, 
+#            height = 500,
+#            annotations = list(x = 10000,y=15000,ax=2,ay=2,
+#                               #text = paste("<b>",reg_text,"</b>"),
+#                               text = paste("Adj-Rsq=",Adj_R_sq),
+#                               font = f
+#                               )
+#            )
+
+
+
+
+
+```
+The correlation plot below, shows the Pearson correlation coefficient between Electricity Consumption, GDP, Life Expectancy and Population pairwise for all 84 countries for year 2011. As stated before Life Expectancy shows strong correlation with GDP and slightly weaker with Electricity consumption. 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.align='center',fig.width = 7,fig.height=7,fig.cap='<b>Correlation Plot -  Year = 2011 by Country </b>'}
+library(PerformanceAnalytics)
+
+#final_agg_country <- aggregate(final[,c(4,5,6,10)],by=list(Category = final$Country_code),FUN=mean)
+final_2011 <- final[final$Year==2011,]
+
+chart.Correlation(final_2011[,c(4,5,6,10)],histogram=TRUE, pch=15,cex=1)
+
+```
+
+
+<br>
+
+This proves the hypothesis that greater economic activity aided by more power production and consumption leads to higher life expectancy in general. War leads to a reduction in Life Expectancy. For example in the case of Libya life expectancy reduced from 76 years in 2010 to 61 years in 2011
+<br>
+<br>
+```{r echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,fig.align='center',fig.width = 7,fig.height=7,fig.cap='<b>Correlation Plot -  Aggregate Mean by Year </b>'}
+# final_agg_year <-aggregate(final[,c(4,5,6,10)],by=list(Category = final$Year),FUN=mean)
+# chart.Correlation(final_agg_year[,c(2,3,4,5)],histogram=TRUE, pch=15,cex=1)
+```
+
+
+## Conclusion
+1.  GDP per capita, Electricity consumption & Life Expectancy are positively correlated to each other.
+2.	In general, all three have increased from the year 1981 to the year 2011.
+3.	China has seen the biggest increase in GDP, Life Expectancy and Electricity consumption. 
+4.	This is followed by other Asian countries like Thailand, India, Indonesia, Malaysia etc. India has to go a long way before catching up with China. Even though overall GDP of India is high (ranked 6th currently) GDP per capita which is an indication of standard of living is quite low. Life expectancy which is also an indication of standard of living is almost 7 years lower than China. 
+5.	South American countries see gains in GDP and resulting increase in Life Expectancy.
+6.	Majority of the African countries appear to be still stagnating on the lower end of the spectrum. This might be due to civil and territorial wars in some of the countries studied. Africa is a very rich continent in terms of mineral and ecological wealth, but  there are a lot of failed states and corrupt government which are preventing from unleashing economic growth. 
+8.	Luxemburg has the highest GDP per capita and Iceland the highest energy consumption per capita. Japan has the highest life expectancy. 
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
