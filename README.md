@@ -1,6 +1,8 @@
 # Life Expectancy, Electricity Consumption and GDP from 1981 to 2011 - A Visual study
 Arun Janakiraman
+
 3/29/2019
+
 Abstract
 
 This project tries to shed light on the relationship between Life Expectancy, Electricity Consumption per capita (in kWh) and GDP growth per capita (in Y2000 $) for around 90 countries. The purpose is to understand whether human life expectancy in years is positively correlated with energy consumption and GDP growth. The question is whether more industrialized nations which have on average higher energy consumption and higher GDP per capita also have higher life expectancy.
